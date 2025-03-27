@@ -1,44 +1,59 @@
-import pandas as pd
-from time import time
+import pandas as Pd
+
 def main():
-    print('Inicio del programa')
-    #==variables
-    archivo = 'Base servicios KOF 2024 con telemetria.xlsx'
-    columnas = ['Servicio', 'Facturacion', 'Orden Servicio']
-    #==codigo 
-    #leectura_excel('Base servicios KOF 2024 con telemetria.xlsx')
+    print("data analysis of excel")
 
-    file_path = archivo
-    chunk_size = 1000  # Número de filas por carga
-    start_row = 0
-
-    while True:
-        try:
-            df = pd.read_excel(file_path, 
-                               engine="openpyxl", 
-                               skiprows=start_row, 
-                               nrows=chunk_size, 
-                               sheet_name='Base',
-                               usecols=columnas,
-                               )
-            if df.empty:
-                break  # Termina cuando no hay más filas
-            
-            print(df.head())  # Aquí puedes procesar cada chunk
-            start_row += chunk_size
-        except Exception as e:
-            print(f"Error: {e}")
-            break
-      
-if __name__ == "__main__":
-    main()
-
-def leectura_excel(archivo):
-    with pd.ExcelFile(archivo) as f_xls:
-        df = pd.read_excel(f_xls, 
-                        sheet_name='Base', 
-                        usecols=['Servicio', 'Facturacion', 'Orden Servicio'], 
-                        #iterator=True,
-                        engine='openpyxl',
-                        )
+    fileExcel = 'FileExcel.xlsx'
     
+    extract_create_excel(fileExcel)
+    data_table = read_csv_dt('origin.csv')
+    proccess_dt(data_table)
+
+def extract_create_excel(path_file):
+    """
+    This function takes an Excel file, 
+    extracts the columns of interest, 
+    and creates a CSV file to speed up 
+    analysis operations.
+    """
+    with Pd.ExcelFile(path_file) as file:
+        dt = Pd.read_excel(
+            file,
+            sheet_name='Base',#pointed sheet
+            usecols=['Servicio', 'Facturacion', 'Orden Servicio'],#columns to extract
+            dtype={'Servicio': str, 'Facturacion': float, 'Orden Servicio': str},#type of data to extract
+            engine='openpyxl'#reading engine
+        )
+        dt.to_csv('origen.csv', index=False)
+
+def read_csv_dt(path_file: str) -> Pd.DataFrame:
+    dt = Pd.read_csv(path_file)
+    return dt
+
+def proccess_dt(dt):
+    dt['Servicio'] = dt['Servicio'].apply(lambda x: 'GARANTIA' if x.startswith('redactado.') else x)
+    grouped = dt.groupby(['Servicio']).agg({
+        'Orden Servicio': 'count',
+        'Facturacion': 'sum'
+    })
+
+    #grouped["Facturacion"] = grouped["Facturacion"].astype(int)
+    grouped["Facturacion"] = grouped["Facturacion"].round(2)
+
+    grouped['Media'] = grouped['Facturacion'] / grouped['Orden Servicio'].astype(float)
+    grouped['Media'] = grouped['Media'].round(2)
+    
+    grouped.to_excel('proccessed_data.xlsx', sheet_name='Resumen', engine='openpyxl')
+    
+
+    #grouped.reset_index().to_csv('proccess.csv', index=False)
+    #grouped_garant = grouped[grouped.index.str.startswith('GTIA.')]
+    #print(grouped_garant)
+    
+    #grouped_gt.reset_index().to_csv('proccess_gt.csv', index=False)
+
+
+
+
+if __name__ =='__main__':
+    main()
